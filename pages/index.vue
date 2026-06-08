@@ -33,17 +33,18 @@
       </svg>
     </div>
 
-    <!-- 搜索框（隐藏式弹出） -->
-    <div v-if="!pageLoading" class="fixed z-[1050] top-[60px] right-5 max-sm:top-auto max-sm:left-1/2 max-sm:-translate-x-1/2 max-sm:bottom-[180px] max-sm:right-auto">
-      <!-- 搜索按钮（圆图标） -->
-      <button v-if="!showSearch" @click="openSearch"
-              class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
-              style="background:rgba(255,255,255,0.88); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5)"
-              title="搜索地名">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </button>
+    <!-- 搜索按钮（🔍 图标，延迟出现避免跳动） -->
+    <button v-if="!pageLoading && !showSearch && !searchClosing" @click="openSearch"
+            class="fixed z-[1050] w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95 shadow-md
+                   top-[60px] right-5
+                   max-sm:top-auto max-sm:left-1/2 max-sm:-translate-x-1/2 max-sm:bottom-[180px]"
+            style="background:rgba(255,255,255,0.88); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5)"
+            title="搜索地名">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
 
-      <!-- 展开的搜索框 -->
+    <!-- 展开的搜索框 -->
+    <div v-if="!pageLoading" class="fixed z-[1050] top-[60px] right-5 max-sm:top-auto max-sm:left-1/2 max-sm:-translate-x-1/2 max-sm:bottom-[180px] max-sm:right-auto">
       <Transition name="search-pop">
         <div v-if="showSearch" class="relative" style="width:min(360px,calc(100vw-32px))">
           <div class="rounded-2xl shadow-lg overflow-hidden"
@@ -263,6 +264,7 @@ const showHeatmap = ref(false)
 const isMobile = ref(false)
 
 const showSearch = ref(false)
+const searchClosing = ref(false)
 const searchQuery = ref('')
 const searchResults = ref<GeoResult[]>([])
 const searchHighlightIndex = ref(-1)
@@ -427,6 +429,9 @@ function closeSearch() {
   showSearch.value = false
   searchQuery.value = ''; searchResults.value = []; searchHighlightIndex.value = -1
   searchInputRef.value?.blur()
+  // 等 Transition 离开动画结束后再显示按钮
+  searchClosing.value = true
+  setTimeout(() => { searchClosing.value = false }, 350)
 }
 
 // ---- 反向地理编码获取中英文名 ----
