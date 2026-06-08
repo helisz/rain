@@ -144,18 +144,18 @@
           </div>
         </div>
       </div>
-      <!-- 移动端 -->
-      <div class="sm:hidden px-2 pb-[max(env(safe-area-inset-bottom,4px),4px)] pt-1"
+      <!-- 移动端（仅未来24h，全宽） -->
+      <div class="sm:hidden pb-[max(env(safe-area-inset-bottom,4px),4px)]"
            style="background:linear-gradient(to top,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 40%)">
-        <div class="rounded-xl px-3 py-2"
-             style="background:rgba(255,255,255,0.92); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5)">
+        <div class="rounded-none px-3 py-2"
+             style="background:rgba(255,255,255,0.92); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5); border-left:none;border-right:none;border-bottom:none">
           <div class="flex items-center justify-between mb-1">
-            <span class="text-[10px] font-semibold text-gray-500">降水趋势</span>
+            <span class="text-[10px] font-semibold text-gray-500">未来24h降水</span>
             <span v-if="selectedHour" class="text-[10px] font-semibold text-blue-600">{{ selectedHourLabel }} {{ selectedHourRain }}mm</span>
           </div>
           <div class="overflow-x-auto pb-1" style="-webkit-overflow-scrolling:touch;scrollbar-width:none" ref="chartScrollRef">
-            <div class="flex items-end gap-2" :style="{ minWidth: hourlyData.length * 38 + 'px' }">
-              <div v-for="(h, i) in hourlyData" :key="h.dt"
+            <div class="flex items-end gap-2 px-3" :style="{ minWidth: Math.min(hourlyData.length, 8) * 44 + 'px' }">
+              <div v-for="(h, i) in hourlyData.slice(0, 8)" :key="h.dt"
                    class="flex flex-col items-center cursor-pointer transition-all duration-150"
                    :class="selectedHourIndex===i ? 'scale-110' : 'hover:opacity-80'"
                    @click="selectPoint(i)">
@@ -176,7 +176,7 @@
     <Transition :name="isMobile ? 'slide-down' : 'slide-left'">
       <div v-if="displayWeather"
            class="fixed z-[1000] top-1/2 left-4 -translate-y-1/2 w-[260px] p-4 rounded-2xl
-                  max-sm:top-12 max-sm:left-3 max-sm:right-3 max-sm:w-auto max-sm:-translate-y-0 max-sm:p-2.5 max-sm:rounded-xl max-sm:max-h-[30vh] overflow-y-auto"
+                  max-sm:top-4 max-sm:left-3 max-sm:right-3 max-sm:w-auto max-sm:-translate-y-0 max-sm:p-2.5 max-sm:rounded-xl max-sm:max-h-[30vh] overflow-y-auto"
            style="background:rgba(255,255,255,0.85); backdrop-filter:blur(32px) saturate(180%); border:1px solid rgba(255,255,255,0.5); box-shadow:0 8px 40px rgba(0,0,0,0.08)">
         <div class="flex items-center justify-between gap-2 mb-2 max-sm:mb-1">
           <div class="flex flex-col min-w-0">
