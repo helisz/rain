@@ -94,6 +94,9 @@
                     text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">现在</text>
               <!-- 数据点 -->
               <g v-for="(pt, i) in plottedPoints" :key="'p'+i">
+                <!-- 数值标签 -->
+                <text :x="pt.x" :y="pt.y - 7" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600"
+                      class="select-none">{{ pt.rain.toFixed(1) }}</text>
                 <circle :cx="pt.x" :cy="pt.y" :r="selectedHourIndex === i ? 5 : 3"
                         fill="white" :stroke="selectedHourIndex === i ? '#ef4444' : '#3b82f6'"
                         :stroke-width="selectedHourIndex === i ? 2 : 1.5"
@@ -276,14 +279,14 @@ const currentTimeIndex = computed(() => {
 })
 
 // SVG chart dimensions
-const padding = { top: 8, bottom: 22, left: 0, right: 0 }
-const chartWidth = 320
-const chartHeight = 56
+const padding = { top: 14, bottom: 22, left: 0, right: 0 }
+const chartWidth = 380
+const chartHeight = 68
 const innerW = chartWidth - padding.left - padding.right
 const innerH = chartHeight - padding.top - padding.bottom
 
 const gridLines = computed(() => {
-  const n = Math.min(hourlyData.value.length, 9)
+  const n = Math.min(hourlyData.value.length, 11)
   return Array.from({ length: n })
 })
 
@@ -293,7 +296,7 @@ const maxRain = computed(() => {
 })
 
 const plottedPoints = computed(() => {
-  const data = hourlyData.value.slice(0, 9) // show 9 points (24h at 3h intervals)
+  const data = hourlyData.value // show all data points
   if (data.length === 0) return []
   return data.map((h, i) => ({
     x: padding.left + (i / Math.max(data.length - 1, 1)) * innerW,
@@ -375,7 +378,7 @@ function generateMockHourly(lat: number, lng: number): HourlyPoint[] {
   const now = Math.floor(Date.now() / 1000)
   const base = Math.floor(now / 10800) * 10800 // round to nearest 3h
   const result: HourlyPoint[] = []
-  for (let i = -4; i <= 4; i++) {
+  for (let i = -5; i <= 4; i++) {
     const dt = base + i * 10800
     const rainSeed = Math.sin(dt * 0.001 + seed) * 100
     result.push({
@@ -416,7 +419,7 @@ async function fetchHourlyForecast(lat: number, lng: number): Promise<HourlyPoin
     return generateMockHourly(lat, lng)
   }
   // 5-day / 3-hour forecast (free tier)
-  const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric&cnt=9`
+  const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric&cnt=11`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`预报 API 请求失败 (${res.status})`)
   const data = await res.json()
