@@ -458,7 +458,7 @@ async function initMap(lat: number, lng: number) {
   })
   if (mapInstance) { mapInstance.setView([lat, lng], 13); return }
   mapInstance = leaflet.default!.map('map', {
-    center: [lat, lng], zoom: 13, zoomControl: true,
+    center: [lat, lng], zoom: 13, zoomControl: false,
   })
   leaflet.default!.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19
@@ -533,17 +533,6 @@ onMounted(async () => {
   65% { transform: translate(-50%,-100%) scale(1.06); }
   100% { transform: translate(-50%,-100%) scale(1); opacity: 1; }
 }
-.leaflet-control-zoom a {
-  background: rgba(255,255,255,0.85) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(255,255,255,0.5) !important;
-  color: #374151 !important;
-  font-weight: 500 !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
-  transition: background 0.2s !important;
-}
-.leaflet-control-zoom a:hover { background: rgba(255,255,255,0.95) !important; }
 
 .switch-track-sm {
   position: relative; flex-shrink: 0;
