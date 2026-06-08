@@ -35,7 +35,7 @@
 
     <!-- 热力图开关 + 图示 -->
     <div v-if="!pageLoading"
-         class="fixed z-[1000] flex items-center gap-2 top-5 right-5 max-sm:top-auto max-sm:left-4 max-sm:bottom-[72px] max-sm:gap-1.5">
+         class="fixed z-[1000] flex items-center gap-2 top-5 right-5 max-sm:top-auto max-sm:left-2 max-sm:bottom-[130px] max-sm:gap-1.5">
       <div class="rounded-full py-2 px-3.5 flex items-center gap-2"
             :class="showHeatmap ? 'bg-blue-50/80 border-blue-200' : ''"
             style="background:rgba(255,255,255,0.85); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5); box-shadow:0 2px 12px rgba(0,0,0,0.06)">
@@ -122,7 +122,7 @@
                    class="flex flex-col items-center cursor-pointer transition-all duration-150"
                    :class="selectedHourIndex === i ? 'scale-110' : 'hover:opacity-80'"
                    @click="selectedHourIndex = selectedHourIndex === i ? -1 : i">
-                <span class="text-[9px] font-semibold text-gray-900 mb-0.5">{{ h.rain }}</span>
+                <span class="text-[9px] font-semibold text-gray-900 mb-0.5">{{ h.rain.toFixed(1) }}</span>
                 <div class="w-[18px] rounded-sm transition-all duration-200"
                      :style="{ height: barHeight(h.rain) + 'px', background: barColor(h.rain) }"></div>
                 <span class="text-[8px] text-gray-400 mt-0.5">{{ formatHour(h.dt) }}</span>
@@ -195,10 +195,10 @@
 
     <!-- 移动端定位按钮（底部浮在图表上方） -->
     <button v-if="!pageLoading && userLocation && isMobile" @click="centerOnUser"
-            class="fixed right-3 z-[1000] flex items-center gap-1 py-1.5 px-3 rounded-full text-[10px] font-semibold text-gray-600 cursor-pointer active:scale-95 shadow-md"
-            style="background:rgba(255,255,255,0.9); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5); bottom:160px">
+            class="fixed right-3 z-[1000] flex items-center gap-1 py-1.5 px-3 rounded-full text-[10px] font-semibold text-gray-600 cursor-pointer active:scale-95 shadow-md max-sm:bottom-[130px] " 
+            style="background:rgba(255,255,255,0.9); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5);">
       <span class="text-sm">📍</span>
-      <span>定位</span>
+      <!-- <span>定位</span> -->
     </button>
   </div>
 </template>
