@@ -35,7 +35,7 @@
 
     <!-- 热力图开关 -->
     <div v-if="!pageLoading"
-         class="fixed z-[1000] flex items-center gap-2 top-5 right-5 max-sm:top-auto max-sm:left-2 max-sm:bottom-[130px] max-sm:gap-1.5">
+         class="fixed z-[1000] flex items-center gap-2 top-5 right-5 max-sm:top-auto max-sm:left-2 max-sm:bottom-[140px] max-sm:gap-1.5">
       <div class="rounded-full py-2 px-3.5 flex items-center gap-2"
             style="background:rgba(255,255,255,0.85); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5); box-shadow:0 2px 12px rgba(0,0,0,0.06)">
         <label class="flex items-center gap-2 cursor-pointer select-none max-sm:gap-1.5">
@@ -65,11 +65,6 @@
              style="background:rgba(255,255,255,0.92); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5); box-shadow:0 4px 24px rgba(0,0,0,0.08)">
           <div class="flex items-center gap-4">
             <span class="text-[11px] font-semibold text-gray-500 whitespace-nowrap">降水趋势</span>
-            <!-- 数据来源图例 -->
-            <div class="flex items-center gap-2">
-              <span class="flex items-center gap-1 text-[8px] text-gray-400"><span class="w-3 h-0.5 rounded bg-gray-300 inline-block"></span> 模拟历史</span>
-              <span class="flex items-center gap-1 text-[8px] text-gray-400"><span class="w-3 h-0.5 rounded bg-blue-500 inline-block"></span> 预测</span>
-            </div>
             <svg :width="chartWidth" :height="chartHeight" class="overflow-visible cursor-pointer" @click.stop>
               <defs>
                 <linearGradient id="precipGrad" x1="0" y1="0" x2="0" y2="1">
@@ -79,12 +74,10 @@
               <line v-for="(_, i) in gridLines" :key="'g'+i"
                     :x1="padding.left+(i/(gridLines.length-1))*innerW" :x2="padding.left+(i/(gridLines.length-1))*innerW"
                     :y1="padding.top" :y2="padding.top+innerH" stroke="#e5e7eb" stroke-width="0.5"/>
-              <!-- 模拟历史区域虚线 -->
-              <path v-if="historyPath" :d="historyPath" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="3,3" stroke-linejoin="round"/>
-              <path v-if="historyAreaPath" :d="historyAreaPath" fill="#9ca3af" opacity="0.08"/>
-              <!-- 预测区域实线 -->
-              <path v-if="forecastPath" :d="forecastPath" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linejoin="round"/>
-              <path v-if="forecastAreaPath" :d="forecastAreaPath" fill="url(#precipGrad)" opacity="0.2"/>
+              <!-- 填充区域 -->
+              <path :d="areaPath" fill="url(#precipGrad)" opacity="0.2"/>
+              <!-- 折线 -->
+              <path :d="linePath" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linejoin="round"/>
               <!-- 当前时间线 -->
               <line v-if="plottedPoints[currentTimeIndex]"
                     :x1="plottedPoints[currentTimeIndex].x" :x2="plottedPoints[currentTimeIndex].x"
@@ -95,11 +88,9 @@
                     text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">现在</text>
               <!-- 数据点 -->
               <g v-for="(pt, i) in plottedPoints" :key="'p'+i">
-                <text :x="pt.x" :y="pt.y - 8" text-anchor="middle" :fill="pt.isHistory ? '#9ca3af' : '#3b82f6'" font-size="8" font-weight="600" class="select-none">{{ pt.rain.toFixed(1) }}</text>
-                <circle :cx="pt.x" :cy="pt.y" :r="selectedHourIndex===i ? 5 : 3"
-                        :fill="pt.isHistory ? '#e5e7eb' : 'white'"
-                        :stroke="selectedHourIndex===i ? '#ef4444' : (pt.isHistory ? '#9ca3af' : '#3b82f6')"
-                        :stroke-width="selectedHourIndex===i ? 2 : 1.5"
+                <text :x="pt.x" :y="pt.y-8" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600" class="select-none">{{ pt.rain.toFixed(1) }}</text>
+                <circle :cx="pt.x" :cy="pt.y" :r="selectedHourIndex===i?5:3" fill="white" stroke="#3b82f6"
+                        :stroke-width="selectedHourIndex===i?2:1.5"
                         class="transition-all duration-150 cursor-pointer hover:opacity-80"
                         @click.stop="selectPoint(i)"/>
                 <circle v-if="selectedHourIndex===i" :cx="pt.x" :cy="pt.y" r="7" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.4"/>
@@ -107,8 +98,7 @@
             </svg>
             <div v-if="selectedHour" class="flex flex-col items-center min-w-[64px]">
               <span class="text-[9px] font-semibold text-gray-500">{{ selectedHour.time }}</span>
-              <span class="text-[11px] font-bold" :class="selectedHour.source==='history' ? 'text-gray-500' : 'text-blue-600'">{{ selectedHour.rain.toFixed(1) }}mm</span>
-              <span class="text-[8px] text-gray-400">{{ selectedHour.source==='history' ? '模拟' : '预测' }}</span>
+              <span class="text-[11px] font-bold text-blue-600">{{ selectedHour.rain.toFixed(1) }}mm</span>
             </div>
             <div v-else class="flex flex-col items-center min-w-[64px] opacity-0"><span class="text-[10px]">-</span></div>
           </div>
@@ -121,12 +111,8 @@
         <div class="rounded-xl px-3 py-2"
              style="background:rgba(255,255,255,0.92); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5)">
           <div class="flex items-center justify-between mb-1">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-semibold text-gray-500">降水</span>
-              <span class="flex items-center gap-1 text-[7px] text-gray-400"><span class="w-2 h-[2px] bg-gray-300 rounded inline-block"></span>模拟</span>
-              <span class="flex items-center gap-1 text-[7px] text-gray-400"><span class="w-2 h-[2px] bg-blue-500 rounded inline-block"></span>预测</span>
-            </div>
-            <span v-if="selectedHour" class="text-[10px] font-semibold" :class="selectedHour.source==='history' ? 'text-gray-500' : 'text-blue-600'">{{ selectedHourLabel }} {{ selectedHourRain }}mm</span>
+            <span class="text-[10px] font-semibold text-gray-500">降水趋势</span>
+            <span v-if="selectedHour" class="text-[10px] font-semibold text-blue-600">{{ selectedHourLabel }} {{ selectedHourRain }}mm</span>
           </div>
           <div class="overflow-x-auto pb-1" style="-webkit-overflow-scrolling:touch;scrollbar-width:none" ref="chartScrollRef">
             <div class="flex items-end gap-2" :style="{ minWidth: hourlyData.length * 38 + 'px' }">
@@ -134,13 +120,12 @@
                    class="flex flex-col items-center cursor-pointer transition-all duration-150"
                    :class="selectedHourIndex===i ? 'scale-110' : 'hover:opacity-80'"
                    @click="selectPoint(i)">
-                <span class="text-[9px] font-semibold mb-0.5" :class="h.source==='history' ? 'text-gray-400' : 'text-gray-900'">{{ h.rain.toFixed(1) }}</span>
+                <span class="text-[9px] font-semibold text-gray-900 mb-0.5">{{ h.rain.toFixed(1) }}</span>
                 <div class="w-[18px] rounded-sm transition-all duration-200"
-                     :style="{ height: barHeight(h.rain)+'px', background: h.source==='history' ? '#d1d5db' : barColor(h.rain),
+                     :style="{ height: barHeight(h.rain)+'px', background: barColor(h.rain),
                                boxShadow: i===currentTimeIndex ? '0 0 0 2px #ef4444' : 'none' }"></div>
                 <span class="text-[7px] mt-0.5" :class="i===currentTimeIndex ? 'text-red-500 font-semibold' : 'text-gray-400'">{{ formatHour(h.dt) }}</span>
                 <span v-if="i===currentTimeIndex" class="text-[7px] font-bold text-red-500 -mt-0.5">▼</span>
-                <span v-if="h.source==='history'" class="text-[6px] text-gray-300">历史</span>
               </div>
             </div>
           </div>
@@ -157,13 +142,9 @@
         <div class="flex items-center justify-between gap-2 mb-2 max-sm:mb-1">
           <div class="flex flex-col min-w-0">
             <span class="text-sm font-bold text-gray-900 truncate max-sm:text-xs">{{ weather.cityName }}</span>
-            <span v-if="selectedHour" class="text-[9px] text-blue-500 font-medium">⏱ {{ selectedHourLabel }} — {{ selectedHour.source==='history' ? '模拟' : '预测' }}</span>
+            <span v-if="selectedHour" class="text-[9px] text-blue-500 font-medium">⏱ {{ selectedHourLabel }}</span>
             <span v-else class="text-[9px] text-gray-400 font-mono max-sm:hidden">{{ coords!.latitude.toFixed(4) }}, {{ coords!.longitude.toFixed(4) }}</span>
           </div>
-          <span v-if="!selectedHour" class="text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
-                :class="weather.source==='api' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'">
-            {{ weather.source==='api' ? '实时' : '模拟' }}
-          </span>
         </div>
 
         <div class="max-sm:flex max-sm:items-center max-sm:gap-1.5">
@@ -200,7 +181,7 @@
       <span class="text-sm">📍</span><span>定位</span>
     </button>
     <button v-if="!pageLoading && userLocation && isMobile" @click="centerOnUser"
-            class="fixed right-3 z-[1000] flex items-center gap-1 py-1.5 px-3 rounded-full text-[10px] font-semibold text-gray-600 cursor-pointer active:scale-95 shadow-md max-sm:bottom-[130px]"
+            class="fixed right-3 z-[1000] flex items-center gap-1 py-1.5 px-3 rounded-full text-[10px] font-semibold text-gray-600 cursor-pointer active:scale-95 shadow-md max-sm:bottom-[140px]"
             style="background:rgba(255,255,255,0.9); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5)">
       <span class="text-sm">📍</span>
     </button>
@@ -221,7 +202,6 @@ interface HourlyPoint {
   dt: number; rain: number; time: string
   temperature: number; humidity: number; windSpeed: number
   description: string
-  source: 'history' | 'forecast'
 }
 
 // ---- State ----
@@ -250,13 +230,10 @@ const selectedHourRain = computed(() => selectedHour.value ? selectedHour.value.
 // 显示的数据：有选中点时用选中点，否则用当前天气
 const displayWeather = computed(() => {
   if (selectedHour.value) {
-    return {
-      rain: selectedHour.value.rain.toFixed(1),
-      source: selectedHour.value.source
-    }
+    return { rain: selectedHour.value.rain.toFixed(1) }
   }
   if (!weather.value) return null
-  return { rain: weather.value.rain1h.toFixed(1), source: weather.value.source }
+  return { rain: weather.value.rain1h.toFixed(1) }
 })
 
 const displayItems = computed(() => {
@@ -298,37 +275,18 @@ const gridLines = computed(() => Array.from({ length: Math.min(hourlyData.value.
 
 const maxRain = computed(() => Math.max(Math.max(...hourlyData.value.map(h => h.rain), 0.5), 0.5))
 
-const historyPoints = computed(() => hourlyData.value.filter(h => h.source === 'history'))
-const forecastPoints = computed(() => hourlyData.value.filter(h => h.source === 'forecast'))
-
-function makePath(data: HourlyPoint[]): string {
-  if (data.length < 2) return ''
-  const maxR = maxRain.value
-  return data.map((h, i) => {
-    const x = padding.left + (i / Math.max(data.length - 1, 1)) * innerW
-    const y = padding.top + innerH - (h.rain / maxR) * (innerH - 4)
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
-}
-function makeArea(data: HourlyPoint[]): string {
-  if (data.length < 2) return ''
-  const maxR = maxRain.value
+const linePath = computed(() => {
+  const pts = plottedPoints.value
+  if (pts.length < 2) return ''
+  return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+})
+const areaPath = computed(() => {
+  const pts = plottedPoints.value
+  if (pts.length < 2) return ''
   const bottom = padding.top + innerH
-  const top = data.map((h, i) => {
-    const x = padding.left + (i / Math.max(data.length - 1, 1)) * innerW
-    const y = padding.top + innerH - (h.rain / maxR) * (innerH - 4)
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
-  const last = data[data.length - 1]
-  const first = data[0]
-  const lastX = padding.left + (1) * innerW
-  const firstX = padding.left + 0
-  return `${top} L${lastX},${bottom} L${firstX},${bottom} Z`
-}
-const historyPath = computed(() => makePath(historyPoints.value))
-const historyAreaPath = computed(() => makeArea(historyPoints.value))
-const forecastPath = computed(() => makePath(forecastPoints.value))
-const forecastAreaPath = computed(() => makeArea(forecastPoints.value))
+  const top = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+  return `${top} L${pts[pts.length-1].x.toFixed(1)},${bottom} L${pts[0].x.toFixed(1)},${bottom} Z`
+})
 
 const plottedPoints = computed(() => {
   const data = hourlyData.value
@@ -337,7 +295,7 @@ const plottedPoints = computed(() => {
   return data.map((h, i) => ({
     x: padding.left + (i / Math.max(data.length - 1, 1)) * innerW,
     y: padding.top + innerH - (h.rain / maxR) * (innerH - 4),
-    rain: h.rain, time: h.time, isHistory: h.source === 'history'
+    rain: h.rain, time: h.time
   }))
 })
 
@@ -377,52 +335,11 @@ function getPosition(): Promise<{ latitude: number; longitude: number }> {
 const config = useRuntimeConfig()
 const apiKey = config.public.openWeatherApiKey as string | undefined
 
-// ---- Mock helpers ----
-function seedValue(lat: number, lng: number, dt: number): number {
-  const s = Math.sin(lat * lng * 0.1 + dt * 0.001) * 100
-  return s
-}
 
-function getMockWeather(lat: number, lng: number): WeatherData {
-  const s = seedValue(lat, lng, Math.floor(Date.now() / 1000))
-  const mockRain = Math.abs(Math.round((s % 5) * 10)) / 10
-  return {
-    temperature: Math.round(22 + (s % 10)), description: '小雨', icon: '09d',
-    rain1h: mockRain, rain3h: Math.round(mockRain * 2.5 * 10) / 10,
-    humidity: Math.round(65 + Math.abs(s % 30)),
-    windSpeed: Math.round((3 + Math.abs(s % 5)) * 10) / 10,
-    cityName: '当前位置', source: 'mock'
-  }
-}
-
-function generateMockHourly(lat: number, lng: number): HourlyPoint[] {
-  const now = Math.floor(Date.now() / 1000)
-  const base = Math.floor(now / 10800) * 10800
-  const result: HourlyPoint[] = []
-  for (let i = -5; i <= 4; i++) {
-    const dt = base + i * 10800
-    const s = seedValue(lat, lng, dt)
-    const isHistory = dt <= now
-    result.push({
-      dt,
-      rain: Math.max(0, Math.round(Math.abs((s % 7)) * 10) / 10),
-      time: formatHour(dt),
-      temperature: Math.round(22 + (s % 10)),
-      humidity: Math.round(65 + Math.abs(s % 30)),
-      windSpeed: Math.round((3 + Math.abs(s % 5)) * 10) / 10,
-      description: Math.abs(s % 5) > 2 ? '小雨' : '阴',
-      source: isHistory ? 'history' : 'forecast'
-    })
-  }
-  return result
-}
 
 // ---- Fetch ----
-async function fetchWeather(lat: number, lng: number): Promise<WeatherData> {
-  if (!apiKey || apiKey === 'your_api_key_here') {
-    await new Promise(r => setTimeout(r, 300))
-    return getMockWeather(lat, lng)
-  }
+async function fetchWeather(lat: number, lng: number): Promise<WeatherData | null> {
+  if (!apiKey || apiKey === 'your_api_key_here') return null
   const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric&lang=zh_cn`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`API 请求失败 (${res.status})`)
@@ -436,49 +353,21 @@ async function fetchWeather(lat: number, lng: number): Promise<WeatherData> {
 }
 
 async function fetchHourlyForecast(lat: number, lng: number): Promise<HourlyPoint[]> {
-  // 无 API Key → 全模拟
-  if (!apiKey || apiKey === 'your_api_key_here') {
-    return generateMockHourly(lat, lng)
-  }
+  if (!apiKey || apiKey === 'your_api_key_here') return []
 
-  const now = Math.floor(Date.now() / 1000)
-  const base = Math.floor(now / 10800) * 10800
-
-  // 过去时刻 → 模拟（基于经纬度 seed）
-  const result: HourlyPoint[] = []
-  for (let i = -5; i < 0; i++) {
-    const dt = base + i * 10800
-    const s = seedValue(lat, lng, dt)
-    result.push({
-      dt, rain: Math.max(0, Math.round(Math.abs((s % 7)) * 10) / 10),
-      time: formatHour(dt),
-      temperature: Math.round(22 + (s % 10)),
-      humidity: Math.round(65 + Math.abs(s % 30)),
-      windSpeed: Math.round((3 + Math.abs(s % 5)) * 10) / 10,
-      description: Math.abs(s % 5) > 2 ? '小雨' : '阴',
-      source: 'history'
-    })
-  }
-
-  // 未来时刻 → 真实预报
-  const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric&lang=zh_cn&cnt=5`
+  const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric&lang=zh_cn`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`预报 API 请求失败 (${res.status})`)
   const data = await res.json()
-  for (const item of data.list || []) {
-    result.push({
-      dt: item.dt,
-      rain: (item.rain?.['3h'] ?? 0) / 3,
-      time: formatHour(item.dt),
-      temperature: Math.round(item.main?.temp ?? 22),
-      humidity: item.main?.humidity ?? 65,
-      windSpeed: item.wind?.speed ?? 3,
-      description: item.weather?.[0]?.description ?? '未知',
-      source: 'forecast'
-    })
-  }
-
-  return result
+  return (data.list || []).map((item: any) => ({
+    dt: item.dt,
+    rain: (item.rain?.['3h'] ?? 0) / 3,
+    time: formatHour(item.dt),
+    temperature: Math.round(item.main?.temp ?? 22),
+    humidity: item.main?.humidity ?? 65,
+    windSpeed: item.wind?.speed ?? 3,
+    description: item.weather?.[0]?.description ?? '未知',
+  }))
 }
 
 // ---- Heatmap ----
