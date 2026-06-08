@@ -12,7 +12,7 @@
 
     <!-- 错误提示 -->
     <div v-if="errorMsg"
-         class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-medium max-w-[90vw] shadow-lg"
+         class="fixed top-14 left-1/2 -translate-x-1/2 z-[10000] flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-medium max-w-[90vw] shadow-lg"
          style="background:rgba(254,242,242,0.95); backdrop-filter:blur(20px); border:1px solid rgba(239,68,68,0.2); color:#dc2626">
       <span>⚠️ {{ errorMsg }}</span>
       <button @click="errorMsg = ''" class="bg-none border-none text-[#dc2626] cursor-pointer text-base p-0 opacity-60 hover:opacity-100">✕</button>
@@ -31,6 +31,40 @@
         <circle cx="18" cy="17.5" r="6.5" fill="white"/>
         <circle cx="18" cy="17.5" r="3.8" fill="#dc2626"/>
       </svg>
+    </div>
+
+    <!-- 搜索框 -->
+    <div v-if="!pageLoading" class="fixed z-[1000] top-4 left-1/2 -translate-x-1/2 w-[min(520px,calc(100vw-32px))] max-sm:top-12 max-sm:w-[calc(100vw-24px)]">
+      <div class="relative"
+           style="background:rgba(255,255,255,0.88); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5); box-shadow:0 2px 16px rgba(0,0,0,0.08)">
+        <div :class="searchResults.length > 0 ? 'rounded-t-2xl' : 'rounded-2xl'" class="flex items-center px-3.5 py-2.5 gap-2.5 transition-all duration-200"
+             :style="{ borderBottom: searchResults.length > 0 ? '1px solid rgba(0,0,0,0.04)' : 'none' }">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input ref="searchInputRef" v-model="searchQuery"
+                 type="text" placeholder="搜索地名（中/英文）…"
+                 class="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder:text-gray-400 font-medium leading-none"
+                 @input="onSearchInput" @keydown.escape="clearSearch" @keydown.down.prevent="highlightNext" @keydown.up.prevent="highlightPrev" @keydown.enter.prevent="selectHighlighted"/>
+          <button v-if="searchQuery" @click="clearSearch" class="bg-none border-none text-gray-400 cursor-pointer p-0 text-base leading-none hover:text-gray-600 transition-colors">✕</button>
+        </div>
+
+        <!-- 搜索结果 -->
+        <Transition name="fade">
+          <div v-if="searchResults.length > 0"
+               class="max-h-[280px] overflow-y-auto rounded-b-2xl"
+               style="scrollbar-width:thin">
+            <div v-for="(r, i) in searchResults" :key="`${r.lat}-${r.lon}-${i}`"
+                 class="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer transition-all duration-150"
+                 :class="searchHighlightIndex === i ? 'bg-blue-50' : 'hover:bg-gray-50'"
+                 @click="goToLocation(r)" @mouseenter="searchHighlightIndex = i">
+              <span class="text-base flex-shrink-0">📍</span>
+              <div class="flex flex-col min-w-0">
+                <span class="text-sm font-semibold text-gray-800 truncate">{{ displayName(r) }}</span>
+                <span class="text-[11px] text-gray-400 truncate">{{ r.state ? r.state + ', ' : '' }}{{ r.country || '' }} · {{ r.lat.toFixed(2) }}, {{ r.lon.toFixed(2) }}</span>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
     </div>
 
     <!-- 热力图开关 -->
@@ -74,11 +108,8 @@
               <line v-for="(_, i) in gridLines" :key="'g'+i"
                     :x1="padding.left+(i/(gridLines.length-1))*innerW" :x2="padding.left+(i/(gridLines.length-1))*innerW"
                     :y1="padding.top" :y2="padding.top+innerH" stroke="#e5e7eb" stroke-width="0.5"/>
-              <!-- 填充区域 -->
               <path :d="areaPath" fill="url(#precipGrad)" opacity="0.2"/>
-              <!-- 折线 -->
               <path :d="linePath" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linejoin="round"/>
-              <!-- 当前时间线 -->
               <line v-if="plottedPoints[currentTimeIndex]"
                     :x1="plottedPoints[currentTimeIndex].x" :x2="plottedPoints[currentTimeIndex].x"
                     :y1="padding.top" :y2="padding.top+innerH"
@@ -86,7 +117,6 @@
               <text v-if="plottedPoints[currentTimeIndex]"
                     :x="plottedPoints[currentTimeIndex].x" :y="chartHeight-2"
                     text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">现在</text>
-              <!-- 数据点 -->
               <g v-for="(pt, i) in plottedPoints" :key="'p'+i">
                 <text :x="pt.x" :y="pt.y-8" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600" class="select-none">{{ pt.rain.toFixed(1) }}</text>
                 <circle :cx="pt.x" :cy="pt.y" :r="selectedHourIndex===i?5:3" fill="white" stroke="#3b82f6"
@@ -104,7 +134,6 @@
           </div>
         </div>
       </div>
-
       <!-- 移动端 -->
       <div class="sm:hidden px-2 pb-[max(env(safe-area-inset-bottom,4px),4px)] pt-1"
            style="background:linear-gradient(to top,rgba(255,255,255,0.95) 0%,rgba(255,255,255,0) 40%)">
@@ -133,15 +162,15 @@
       </div>
     </div>
 
-    <!-- 信息面板（选中时刻→展示该时刻天气，未选中→展示当前天气） -->
+    <!-- 信息面板 -->
     <Transition :name="isMobile ? 'slide-down' : 'slide-left'">
       <div v-if="displayWeather"
            class="fixed z-[1000] top-1/2 left-4 -translate-y-1/2 w-[260px] p-4 rounded-2xl
-                  max-sm:top-3 max-sm:left-3 max-sm:right-3 max-sm:w-auto max-sm:-translate-y-0 max-sm:p-2.5 max-sm:rounded-xl max-sm:max-h-[30vh] overflow-y-auto"
+                  max-sm:top-12 max-sm:left-3 max-sm:right-3 max-sm:w-auto max-sm:-translate-y-0 max-sm:p-2.5 max-sm:rounded-xl max-sm:max-h-[30vh] overflow-y-auto"
            style="background:rgba(255,255,255,0.85); backdrop-filter:blur(32px) saturate(180%); border:1px solid rgba(255,255,255,0.5); box-shadow:0 8px 40px rgba(0,0,0,0.08)">
         <div class="flex items-center justify-between gap-2 mb-2 max-sm:mb-1">
           <div class="flex flex-col min-w-0">
-            <span class="text-sm font-bold text-gray-900 truncate max-sm:text-xs">{{ weather.cityName }}</span>
+            <span class="text-sm font-bold text-gray-900 truncate max-sm:text-xs">{{ locationDisplay }}</span>
             <span v-if="selectedHour" class="text-[9px] text-blue-500 font-medium">⏱ {{ selectedHourLabel }}</span>
             <span v-else class="text-[9px] text-gray-400 font-mono max-sm:hidden">{{ coords!.latitude.toFixed(4) }}, {{ coords!.longitude.toFixed(4) }}</span>
           </div>
@@ -196,17 +225,22 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 interface WeatherData {
   temperature: number; description: string; icon: string
   rain1h: number; rain3h: number; humidity: number; windSpeed: number
-  cityName: string; source: 'api' | 'mock'
+  cityName: string; country?: string
 }
 interface HourlyPoint {
   dt: number; rain: number; time: string
   temperature: number; humidity: number; windSpeed: number
   description: string
 }
+interface GeoResult {
+  name: string; local_names?: Record<string, string>; lat: number; lon: number
+  country: string; state?: string
+}
 
 // ---- State ----
 const mapContainer = ref<HTMLDivElement>()
 const chartScrollRef = ref<HTMLDivElement>()
+const searchInputRef = ref<HTMLInputElement>()
 const coords = ref<{ latitude: number; longitude: number } | null>(null)
 const userLocation = ref<{ latitude: number; longitude: number } | null>(null)
 const weather = ref<WeatherData | null>(null)
@@ -219,19 +253,32 @@ const refreshing = ref(false)
 const showHeatmap = ref(false)
 const isMobile = ref(false)
 
+const searchQuery = ref('')
+const searchResults = ref<GeoResult[]>([])
+const searchHighlightIndex = ref(-1)
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+// 当前地点中英文名
+const geoNameZh = ref('')
+const geoNameEn = ref('')
+
 let mapInstance: LeafletMap | null = null
 let heatmapLayer: LeafletTileLayer | null = null
 
 // ---- Computed ----
+const locationDisplay = computed(() => {
+  if (geoNameZh.value && geoNameEn.value && geoNameZh.value !== geoNameEn.value) {
+    return `${geoNameZh.value} / ${geoNameEn.value}`
+  }
+  return geoNameZh.value || geoNameEn.value || (weather.value?.cityName ?? '未知位置')
+})
+
 const selectedHour = computed(() => selectedHourIndex.value >= 0 ? hourlyData.value[selectedHourIndex.value] : null)
 const selectedHourLabel = computed(() => selectedHour.value ? selectedHour.value.time : '')
 const selectedHourRain = computed(() => selectedHour.value ? selectedHour.value.rain.toFixed(1) : '')
 
-// 显示的数据：有选中点时用选中点，否则用当前天气
 const displayWeather = computed(() => {
-  if (selectedHour.value) {
-    return { rain: selectedHour.value.rain.toFixed(1) }
-  }
+  if (selectedHour.value) return { rain: selectedHour.value.rain.toFixed(1) }
   if (!weather.value) return null
   return { rain: weather.value.rain1h.toFixed(1) }
 })
@@ -264,15 +311,13 @@ const currentTimeIndex = computed(() => {
   return closest
 })
 
-// SVG
+// SVG chart
 const padding = { top: 14, bottom: 22, left: 0, right: 0 }
-const chartWidth = 380
-const chartHeight = 68
+const chartWidth = 380; const chartHeight = 68
 const innerW = chartWidth - padding.left - padding.right
 const innerH = chartHeight - padding.top - padding.bottom
 
 const gridLines = computed(() => Array.from({ length: Math.min(hourlyData.value.length, 11) }))
-
 const maxRain = computed(() => Math.max(Math.max(...hourlyData.value.map(h => h.rain), 0.5), 0.5))
 
 const linePath = computed(() => {
@@ -287,7 +332,6 @@ const areaPath = computed(() => {
   const top = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
   return `${top} L${pts[pts.length-1].x.toFixed(1)},${bottom} L${pts[0].x.toFixed(1)},${bottom} Z`
 })
-
 const plottedPoints = computed(() => {
   const data = hourlyData.value
   if (data.length === 0) return []
@@ -311,11 +355,79 @@ function formatHour(ts: number) {
   const d = new Date(ts * 1000)
   return `${d.getHours().toString().padStart(2, '0')}:00`
 }
-
-function selectPoint(i: number) {
-  selectedHourIndex.value = selectedHourIndex.value === i ? -1 : i
-}
+function selectPoint(i: number) { selectedHourIndex.value = selectedHourIndex.value === i ? -1 : i }
 function clearSelection() { selectedHourIndex.value = -1 }
+
+// ---- 搜索地名 ----
+function displayName(r: GeoResult): string {
+  const zh = r.local_names?.zh || r.local_names?.zh_cn || ''
+  const en = r.name
+  if (zh && zh !== en) return `${zh} / ${en}`
+  return en
+}
+
+function onSearchInput() {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchHighlightIndex.value = -1
+  const q = searchQuery.value.trim()
+  if (q.length < 2) { searchResults.value = []; return }
+  searchDebounceTimer = setTimeout(() => doSearch(q), 300)
+}
+
+async function doSearch(q: string) {
+  if (!apiKey || apiKey === 'your_api_key_here') return
+  try {
+    const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=6&appid=${apiKey}`
+    const res = await fetch(url)
+    if (!res.ok) return
+    const data = await res.json()
+    searchResults.value = (data || []).filter((r: GeoResult) => r.lat != null && r.lon != null)
+  } catch { searchResults.value = [] }
+}
+
+function goToLocation(r: GeoResult) {
+  searchQuery.value = displayName(r)
+  searchResults.value = []
+  searchHighlightIndex.value = -1
+  coords.value = { latitude: r.lat, longitude: r.lon }
+  mapInstance?.flyTo([r.lat, r.lon], 13, { animate: true, duration: 1.2 })
+  // 获取天气和地点名
+  updateLocationName(r.lat, r.lon)
+  refreshDataFor(r.lat, r.lon)
+}
+
+function highlightNext() {
+  if (searchResults.value.length === 0) return
+  searchHighlightIndex.value = (searchHighlightIndex.value + 1) % searchResults.value.length
+}
+function highlightPrev() {
+  if (searchResults.value.length === 0) return
+  searchHighlightIndex.value = (searchHighlightIndex.value - 1 + searchResults.value.length) % searchResults.value.length
+}
+function selectHighlighted() {
+  if (searchHighlightIndex.value >= 0 && searchResults.value[searchHighlightIndex.value]) {
+    goToLocation(searchResults.value[searchHighlightIndex.value])
+  }
+}
+function clearSearch() {
+  searchQuery.value = ''; searchResults.value = []; searchHighlightIndex.value = -1
+  searchInputRef.value?.blur()
+}
+
+// ---- 反向地理编码获取中英文名 ----
+async function updateLocationName(lat: number, lng: number) {
+  if (!apiKey || apiKey === 'your_api_key_here') return
+  try {
+    const url = `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lng}&limit=1&appid=${apiKey}`
+    const res = await fetch(url)
+    if (!res.ok) return
+    const data = await res.json()
+    if (data && data[0]) {
+      geoNameZh.value = data[0].local_names?.zh || data[0].local_names?.zh_cn || data[0].name
+      geoNameEn.value = data[0].name
+    }
+  } catch { /* ignore */ }
+}
 
 // ---- Geolocation ----
 function getPosition(): Promise<{ latitude: number; longitude: number }> {
@@ -335,8 +447,6 @@ function getPosition(): Promise<{ latitude: number; longitude: number }> {
 const config = useRuntimeConfig()
 const apiKey = config.public.openWeatherApiKey as string | undefined
 
-
-
 // ---- Fetch ----
 async function fetchWeather(lat: number, lng: number): Promise<WeatherData | null> {
   if (!apiKey || apiKey === 'your_api_key_here') return null
@@ -348,26 +458,30 @@ async function fetchWeather(lat: number, lng: number): Promise<WeatherData | nul
     temperature: Math.round(data.main?.temp ?? 0), description: data.weather?.[0]?.description ?? '未知',
     icon: data.weather?.[0]?.icon ?? '01d', rain1h: data.rain?.['1h'] ?? 0, rain3h: data.rain?.['3h'] ?? 0,
     humidity: data.main?.humidity ?? 0, windSpeed: data.wind?.speed ?? 0,
-    cityName: data.name ?? '未知位置', source: 'api'
+    cityName: data.name ?? '未知位置',
   }
 }
 
 async function fetchHourlyForecast(lat: number, lng: number): Promise<HourlyPoint[]> {
   if (!apiKey || apiKey === 'your_api_key_here') return []
-
   const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric&lang=zh_cn`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`预报 API 请求失败 (${res.status})`)
   const data = await res.json()
   return (data.list || []).map((item: any) => ({
-    dt: item.dt,
-    rain: (item.rain?.['3h'] ?? 0) / 3,
-    time: formatHour(item.dt),
+    dt: item.dt, rain: (item.rain?.['3h'] ?? 0) / 3, time: formatHour(item.dt),
     temperature: Math.round(item.main?.temp ?? 22),
     humidity: item.main?.humidity ?? 65,
     windSpeed: item.wind?.speed ?? 3,
     description: item.weather?.[0]?.description ?? '未知',
   }))
+}
+
+async function refreshDataFor(lat: number, lng: number) {
+  try {
+    const [w, h] = await Promise.all([fetchWeather(lat, lng), fetchHourlyForecast(lat, lng)])
+    weather.value = w; hourlyData.value = h; selectedHourIndex.value = -1
+  } catch (e) { errorMsg.value = e instanceof Error ? e.message : '获取数据失败' }
 }
 
 // ---- Heatmap ----
@@ -404,6 +518,7 @@ async function initMap(lat: number, lng: number) {
   mapInstance.on('moveend', async () => {
     const c = mapInstance!.getCenter()
     coords.value = { latitude: c.lat, longitude: c.lng }
+    await updateLocationName(c.lat, c.lng)
     try {
       const [w, h] = await Promise.all([fetchWeather(c.lat, c.lng), fetchHourlyForecast(c.lat, c.lng)])
       weather.value = w; hourlyData.value = h; selectedHourIndex.value = -1
@@ -421,10 +536,7 @@ function centerOnUser() {
 async function refreshData() {
   if (!coords.value) return
   refreshing.value = true
-  try {
-    const [w, h] = await Promise.all([fetchWeather(coords.value.latitude, coords.value.longitude), fetchHourlyForecast(coords.value.latitude, coords.value.longitude)])
-    weather.value = w; hourlyData.value = h; selectedHourIndex.value = -1
-  } catch (e) { errorMsg.value = e instanceof Error ? e.message : '获取数据失败' }
+  await refreshDataFor(coords.value.latitude, coords.value.longitude)
   refreshing.value = false
 }
 
@@ -433,14 +545,17 @@ function checkMobile() { isMobile.value = window.innerWidth < 640 }
 onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
-  try { const pos = await getPosition(); userLocation.value = pos; coords.value = pos }
-  catch (e) {
+  try {
+    const pos = await getPosition()
+    userLocation.value = pos; coords.value = pos
+  } catch (e) {
     errorMsg.value = e instanceof Error ? e.message : '定位失败，使用默认位置'
     const fallback = { latitude: 39.9042, longitude: 116.4074 }
     userLocation.value = fallback; coords.value = fallback
   }
   loadingMessage.value = '正在加载数据…'
   await nextTick(); await initMap(coords.value!.latitude, coords.value!.longitude)
+  await updateLocationName(coords.value!.latitude, coords.value!.longitude)
   try {
     const [w, h] = await Promise.all([fetchWeather(coords.value!.latitude, coords.value!.longitude), fetchHourlyForecast(coords.value!.latitude, coords.value!.longitude)])
     weather.value = w; hourlyData.value = h
