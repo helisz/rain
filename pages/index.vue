@@ -84,6 +84,14 @@
               <path :d="areaPath" fill="url(#precipGrad)" opacity="0.25"/>
               <!-- 折线 -->
               <path :d="linePath" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- 当前时间指示线 -->
+              <line v-if="plottedPoints[currentTimeIndex]"
+                    :x1="plottedPoints[currentTimeIndex].x" :x2="plottedPoints[currentTimeIndex].x"
+                    :y1="padding.top" :y2="padding.top + innerH"
+                    stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7"/>
+              <text v-if="plottedPoints[currentTimeIndex]"
+                    :x="plottedPoints[currentTimeIndex].x" :y="chartHeight - 2"
+                    text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">现在</text>
               <!-- 数据点 -->
               <g v-for="(pt, i) in plottedPoints" :key="'p'+i">
                 <circle :cx="pt.x" :cy="pt.y" :r="selectedHourIndex === i ? 5 : 3"
@@ -124,8 +132,11 @@
                    @click="selectedHourIndex = selectedHourIndex === i ? -1 : i">
                 <span class="text-[9px] font-semibold text-gray-900 mb-0.5">{{ h.rain.toFixed(1) }}</span>
                 <div class="w-[18px] rounded-sm transition-all duration-200"
-                     :style="{ height: barHeight(h.rain) + 'px', background: barColor(h.rain) }"></div>
-                <span class="text-[8px] text-gray-400 mt-0.5">{{ formatHour(h.dt) }}</span>
+                     :style="{ height: barHeight(h.rain) + 'px', background: barColor(h.rain),
+                               boxShadow: i === currentTimeIndex ? '0 0 0 2px #ef4444' : 'none' }"></div>
+                <span class="text-[8px] mt-0.5"
+                      :class="i === currentTimeIndex ? 'text-red-500 font-semibold' : 'text-gray-400'">{{ formatHour(h.dt) }}</span>
+                <span v-if="i === currentTimeIndex" class="text-[7px] font-bold text-red-500 -mt-0.5">▼</span>
               </div>
             </div>
           </div>
@@ -252,8 +263,20 @@ const selectedHour = computed(() => selectedHourIndex.value >= 0 ? hourlyData.va
 const selectedHourLabel = computed(() => selectedHour.value ? selectedHour.value.time : '')
 const selectedHourRain = computed(() => selectedHour.value ? selectedHour.value.rain.toFixed(1) : '')
 
+// Find the data point closest to current time
+const currentTimeIndex = computed(() => {
+  const now = Math.floor(Date.now() / 1000)
+  let closest = 0
+  let minDiff = Infinity
+  for (let i = 0; i < hourlyData.value.length; i++) {
+    const diff = Math.abs(hourlyData.value[i].dt - now)
+    if (diff < minDiff) { minDiff = diff; closest = i }
+  }
+  return closest
+})
+
 // SVG chart dimensions
-const padding = { top: 8, bottom: 16, left: 0, right: 0 }
+const padding = { top: 8, bottom: 22, left: 0, right: 0 }
 const chartWidth = 320
 const chartHeight = 56
 const innerW = chartWidth - padding.left - padding.right
