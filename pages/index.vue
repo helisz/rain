@@ -12,7 +12,7 @@
 
     <!-- 错误提示 -->
     <div v-if="errorMsg"
-         class="fixed top-14 left-1/2 -translate-x-1/2 z-[10000] flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-medium max-w-[90vw] shadow-lg"
+         class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-medium max-w-[90vw] shadow-lg"
          style="background:rgba(254,242,242,0.95); backdrop-filter:blur(20px); border:1px solid rgba(239,68,68,0.2); color:#dc2626">
       <span>⚠️ {{ errorMsg }}</span>
       <button @click="errorMsg = ''" class="bg-none border-none text-[#dc2626] cursor-pointer text-base p-0 opacity-60 hover:opacity-100">✕</button>
@@ -33,38 +33,47 @@
       </svg>
     </div>
 
-    <!-- 搜索框 -->
-    <div v-if="!pageLoading" class="fixed z-[1000] top-4 left-1/2 -translate-x-1/2 w-[min(520px,calc(100vw-32px))] max-sm:top-12 max-sm:w-[calc(100vw-24px)]">
-      <div class="relative"
-           style="background:rgba(255,255,255,0.88); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5); box-shadow:0 2px 16px rgba(0,0,0,0.08)">
-        <div :class="searchResults.length > 0 ? 'rounded-t-2xl' : 'rounded-2xl'" class="flex items-center px-3.5 py-2.5 gap-2.5 transition-all duration-200"
-             :style="{ borderBottom: searchResults.length > 0 ? '1px solid rgba(0,0,0,0.04)' : 'none' }">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input ref="searchInputRef" v-model="searchQuery"
-                 type="text" placeholder="搜索地名（中/英文）…"
-                 class="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder:text-gray-400 font-medium leading-none"
-                 @input="onSearchInput" @keydown.escape="clearSearch" @keydown.down.prevent="highlightNext" @keydown.up.prevent="highlightPrev" @keydown.enter.prevent="selectHighlighted"/>
-          <button v-if="searchQuery" @click="clearSearch" class="bg-none border-none text-gray-400 cursor-pointer p-0 text-base leading-none hover:text-gray-600 transition-colors">✕</button>
-        </div>
+    <!-- 搜索框（隐藏式弹出） -->
+    <div v-if="!pageLoading" class="fixed z-[1050] top-[60px] right-5 max-sm:top-auto max-sm:left-1/2 max-sm:-translate-x-1/2 max-sm:bottom-[180px] max-sm:right-auto">
+      <!-- 搜索按钮（圆图标） -->
+      <button v-if="!showSearch" @click="openSearch"
+              class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
+              style="background:rgba(255,255,255,0.88); backdrop-filter:blur(24px) saturate(180%); border:1px solid rgba(255,255,255,0.5)"
+              title="搜索地名">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
 
-        <!-- 搜索结果 -->
-        <Transition name="fade">
-          <div v-if="searchResults.length > 0"
-               class="max-h-[280px] overflow-y-auto rounded-b-2xl"
-               style="scrollbar-width:thin">
-            <div v-for="(r, i) in searchResults" :key="`${r.lat}-${r.lon}-${i}`"
-                 class="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer transition-all duration-150"
-                 :class="searchHighlightIndex === i ? 'bg-blue-50' : 'hover:bg-gray-50'"
-                 @click="goToLocation(r)" @mouseenter="searchHighlightIndex = i">
-              <span class="text-base flex-shrink-0">📍</span>
-              <div class="flex flex-col min-w-0">
-                <span class="text-sm font-semibold text-gray-800 truncate">{{ displayName(r) }}</span>
-                <span class="text-[11px] text-gray-400 truncate">{{ r.state ? r.state + ', ' : '' }}{{ r.country || '' }} · {{ r.lat.toFixed(2) }}, {{ r.lon.toFixed(2) }}</span>
-              </div>
+      <!-- 展开的搜索框 -->
+      <Transition name="search-pop">
+        <div v-if="showSearch" class="relative" style="width:min(360px,calc(100vw-32px))">
+          <div class="rounded-2xl shadow-lg overflow-hidden"
+               style="background:rgba(255,255,255,0.92); backdrop-filter:blur(28px) saturate(180%); border:1px solid rgba(255,255,255,0.5)">
+            <div class="flex items-center px-3.5 py-2.5 gap-2.5"
+                 :style="{ borderBottom: searchResults.length > 0 ? '1px solid rgba(0,0,0,0.04)' : 'none' }">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input ref="searchInputRef" v-model="searchQuery"
+                     type="text" placeholder="搜索地名（中/英文）…"
+                     class="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 placeholder:text-gray-400 font-medium leading-none"
+                     @input="onSearchInput" @keydown.escape="closeSearch" @keydown.down.prevent="highlightNext" @keydown.up.prevent="highlightPrev" @keydown.enter.prevent="selectHighlighted"/>
+              <button @click="closeSearch" class="bg-none border-none text-gray-400 cursor-pointer p-0 text-base leading-none hover:text-gray-600 transition-colors">✕</button>
             </div>
+            <Transition name="fade">
+              <div v-if="searchResults.length > 0" class="max-h-[280px] overflow-y-auto" style="scrollbar-width:thin">
+                <div v-for="(r, i) in searchResults" :key="`${r.lat}-${r.lon}-${i}`"
+                     class="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer transition-all duration-150"
+                     :class="searchHighlightIndex === i ? 'bg-blue-50' : 'hover:bg-gray-50'"
+                     @click="goToLocation(r)" @mouseenter="searchHighlightIndex = i">
+                  <span class="text-base flex-shrink-0">📍</span>
+                  <div class="flex flex-col min-w-0">
+                    <span class="text-sm font-semibold text-gray-800 truncate">{{ displayName(r) }}</span>
+                    <span class="text-[11px] text-gray-400 truncate">{{ r.state ? r.state + ', ' : '' }}{{ r.country || '' }} · {{ r.lat.toFixed(2) }}, {{ r.lon.toFixed(2) }}</span>
+                  </div>
+                </div>
+              </div>
+            </Transition>
           </div>
-        </Transition>
-      </div>
+        </div>
+      </Transition>
     </div>
 
     <!-- 热力图开关 -->
@@ -253,6 +262,7 @@ const refreshing = ref(false)
 const showHeatmap = ref(false)
 const isMobile = ref(false)
 
+const showSearch = ref(false)
 const searchQuery = ref('')
 const searchResults = ref<GeoResult[]>([])
 const searchHighlightIndex = ref(-1)
@@ -409,7 +419,12 @@ function selectHighlighted() {
     goToLocation(searchResults.value[searchHighlightIndex.value])
   }
 }
-function clearSearch() {
+function openSearch() {
+  showSearch.value = true
+  nextTick(() => searchInputRef.value?.focus())
+}
+function closeSearch() {
+  showSearch.value = false
   searchQuery.value = ''; searchResults.value = []; searchHighlightIndex.value = -1
   searchInputRef.value?.blur()
 }
@@ -582,6 +597,9 @@ onMounted(async () => {
 .slide-down-enter-to, .slide-down-leave-from { opacity: 1; transform: translateY(0) translateX(-50%); }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+.search-pop-enter-active, .search-pop-leave-active { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
+.search-pop-enter-from, .search-pop-leave-to { opacity: 0; transform: translateY(-8px) scale(0.96); transform-origin: top right; }
+.search-pop-enter-to, .search-pop-leave-from { opacity: 1; transform: translateY(0) scale(1); transform-origin: top right; }
 ::-webkit-scrollbar { width: 2px; height: 2px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 1px; }
